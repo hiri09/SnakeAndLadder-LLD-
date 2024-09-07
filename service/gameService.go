@@ -1,119 +1,104 @@
 package service
 
 import (
-	"fmt" // Add this import for fmt.Println
+	// Add this import for fmt.Println
+
+	"fmt"
 	"snake-and-ladder/entity"
 	"snake-and-ladder/utils"
 )
 
+type BoardObjects interface {
+	HandleObjectInteraction(currentPos int, name string) int
+}
+
 type Game struct {
-	BoardSize int
-	Players   utils.Queue
-	Ladders   []*entity.Ladder
-	Snakes    []*entity.Snake
-	PlayerPos map[int]int
-	NoOfDice  int
+	BoardSize        int
+	Players          utils.Queue
+	GameBoardObjects []BoardObjects
+	PlayerPos        map[int]int
+	NoOfDice         int
 }
 
-func putPlayerInQueue(currentPlayers *utils.Queue, players map[int]string) map[int]int {
-	playersPos := make(map[int]int)
-	for key, value := range players {
+func (game *Game) putPlayerInQueue(players map[int]string) {
+
+	for id, name := range players {
 		player := &entity.Player{
-			Name: value,
-			Id:   key,
+			Name: name,
+			Id:   id,
 		}
-		playersPos[key] = 0
-		currentPlayers.AddPlayerInQueue(player)
-	}
 
-	return playersPos
+		game.Players.AddPlayerInQueue(player)
+		game.PlayerPos[id] = 0
+	}
 }
 
-func CreateLadders(positions map[int]int) []*entity.Ladder {
-	var ladders []*entity.Ladder
-	for start, end := range positions {
-		if entity.IsValidLadder(start, end) {
-			ladder := &entity.Ladder{
-				StartPos: start,
-				EndPos:   end,
-			}
-			ladders = append(ladders, ladder)
+func getBoardObject(start int, end int) BoardObjects {
+	if entity.IsValidLadder(start, end) {
+		return &entity.Ladder{
+			StartPos: start,
+			EndPos:   end,
 		}
 	}
-	return ladders
+
+	return &entity.Snake{
+		StartPos: start,
+		EndPos:   end,
+	}
 }
 
-func CreateSnakes(positions map[int]int) []*entity.Snake {
-	var snakes []*entity.Snake
-	for start, end := range positions {
-		if entity.IsValidSnake(start, end) {
-			snake := &entity.Snake{
-				StartPos: start,
-				EndPos:   end,
-			}
-			snakes = append(snakes, snake)
-		}
+func (game *Game) FillBoardObject(ladderPositions map[int]int, snakePositions map[int]int) {
+
+	for start, end := range ladderPositions {
+		gameBoardObject := getBoardObject(start, end)
+		game.GameBoardObjects = append(game.GameBoardObjects, gameBoardObject)
 	}
-	return snakes
+
+	for start, end := range snakePositions {
+		gameBoardObject := getBoardObject(start, end)
+		game.GameBoardObjects = append(game.GameBoardObjects, gameBoardObject)
+	}
 }
 
 func CreateNewGame(boardSize int, players map[int]string, ladderPositions map[int]int, snakePositions map[int]int, noOfDice int) *Game {
-	var currentPlayers utils.Queue
-	playersPos := putPlayerInQueue(&currentPlayers, players)
-
-	ladders := CreateLadders(ladderPositions)
-	snakes := CreateSnakes(snakePositions)
-
-	return &Game{
+	game := &Game{
 		BoardSize: boardSize,
-		Players:   currentPlayers,
-		Ladders:   ladders,
-		Snakes:    snakes,
-		PlayerPos: playersPos,
+		PlayerPos: make(map[int]int),
 		NoOfDice:  noOfDice,
 	}
+
+	game.putPlayerInQueue(players)
+
+	game.FillBoardObject(ladderPositions, snakePositions)
+
+	return game
 }
 
 func (game *Game) StartGame() {
-
+	totalPlayer := game.Players.NoOfPlayers()
 	for game.Players.NoOfPlayers() > 1 {
 		currentPlayer := game.Players.RemovePlayerFromQueue()
 
 		diceRollValue := utils.CalculateRandomNo(game.NoOfDice)
 
-		currntPlayerPos := game.PlayerPos[currentPlayer.Id]
-		nextPos := diceRollValue + currntPlayerPos
-		fmt.Printf("Player %s Rolls dice value is %d\n", currentPlayer.Name, nextPos)
-		if nextPos > game.BoardSize {
+		currentPlayerPos := game.PlayerPos[currentPlayer.Id]
+		nextPosition := diceRollValue + currentPlayerPos
+
+		fmt.Printf("Player %s Rolls dice value is %d\n", currentPlayer.Name, nextPosition)
+		if nextPosition > game.BoardSize {
 			game.Players.AddPlayerInQueue(currentPlayer)
 			continue
 		} else {
-			//if we find ladder
-			for _, ladder := range game.Ladders {
-				start := ladder.StartPos
-				end := ladder.EndPos
-				if nextPos == start {
-					fmt.Printf("Player %s found a ladder at position %d, moving to position %d\n", currentPlayer.Name, start, end)
-					nextPos = end
-					break
-				}
-			}
-			//if we find a snake
-			for _, snake := range game.Snakes {
-				start := snake.StartPos
-				end := snake.EndPos
-				if nextPos == start {
-					fmt.Printf("Player %s found a Snake at position %d, moving to position %d\n", currentPlayer.Name, start, end)
-					nextPos = end
-					break
-				}
+
+			for _, object := range game.GameBoardObjects {
+				nextPosition = object.HandleObjectInteraction(nextPosition, currentPlayer.Name)
 			}
 
-			if nextPos == game.BoardSize {
-				fmt.Printf("Player %s won!\n", currentPlayer.Name)
+			if nextPosition == game.BoardSize {
+				fmt.Printf("Player %s won comes %d!\n", currentPlayer.Name, totalPlayer-game.Players.NoOfPlayers())
 			} else {
 				game.Players.AddPlayerInQueue(currentPlayer)
-				game.PlayerPos[currentPlayer.Id] = nextPos
+				game.PlayerPos[currentPlayer.Id] = nextPosition
 			}
 		}
 	}

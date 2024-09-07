@@ -9,6 +9,8 @@ func main() {
 	players := map[int]string{
 		1: "Alice",
 		2: "Bob",
+		3: "joy",
+		4: "raman",
 	}
 
 	// Dummy data for ladders
@@ -25,11 +27,10 @@ func main() {
 		21: 9, // Snake from position 21 to 9
 	}
 	game := service.CreateNewGame(100, players, ladders, snakes, 1)
-
 	fmt.Printf("Board Size: %d\n", game.BoardSize)
 	fmt.Printf("Players: %d\n", game.Players.NoOfPlayers())
-	fmt.Printf("Ladders: %v\n", game.Ladders)
-	fmt.Printf("Snakes: %v\n", game.Snakes)
+	// fmt.Printf("Ladders: %v\n", game.Ladders)
+	// fmt.Printf("Snakes: %v\n", game.Snakes)
 	fmt.Printf("Player Positions: %+v\n", game.PlayerPos)
 
 	game.StartGame() // Call StartGame as a method of Game
